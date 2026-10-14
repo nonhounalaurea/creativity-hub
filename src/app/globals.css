@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   TEMA: tutti i colori vivono qui. Per cambiare accento modifica --accent.
+   ------------------------------------------------------------------ */
+:root {
+  --accent: #7ae0b0;
+  --bg: #0b0c0f;
+  --surface: #14161b;
+  --border: #262a33;
+  --text: #e8eaee;
+  --muted: #8b92a0; /* grigio neutro per testi secondari */
+}
+
+@theme inline {
+  --color-accent: var(--accent);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tutte le anteprime: rapporto derivato da ASPECT_RATIO (src/config/format.ts)
+   tramite la variabile --ar impostata in layout.tsx. */
+.ar-box {
+  aspect-ratio: var(--ar, 3.1666667);
+  container-type: inline-size;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.scroll-row {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  scroll-snap-type: x proximity;
+}
+.scroll-row > * {
+  scroll-snap-align: start;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0.6rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.field {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  min-width: 0;
+}
+.card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 1rem;
+  padding: 1rem;
+}
