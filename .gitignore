@@ -11,3 +11,5 @@ test-results
 playwright-report
 .vercel
 _vm
+.DS_Store
+**/.DS_Store

@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
+import { HAS_CREDS, SKIP_REASON, login } from "./helpers";
 
 const ROOT = path.resolve(__dirname, "..");
 const FORMAT = path.join(ROOT, "src/config/format.ts");
@@ -49,6 +50,13 @@ test("1. npm run build senza errori", async () => {
   }).toString();
   expect(out).toContain("Generating static pages");
   expect(out).not.toMatch(/Failed to compile|Type error/);
+});
+
+test.describe("pagine (Fase 1, richiedono login reale)", () => {
+// Dalla Fase 2 le pagine richiedono login: questi test girano solo con E2E_EMAIL/E2E_PASSWORD.
+test.skip(!HAS_CREDS, SKIP_REASON);
+test.beforeEach(async ({ page }) => {
+  await login(page);
 });
 
 test("2. le 5 rotte si aprono e la sidebar naviga", async ({ page }) => {
@@ -185,4 +193,6 @@ test("6. nessuno scroll orizzontale a 1440px e 390px (+ screenshot)", async ({ p
       if (r === "create") await page.screenshot({ path: path.join(SHOTS, `create-${name}.png`), fullPage: true });
     }
   }
+});
+
 });

@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { APP_NAME, NAV_ITEMS } from "@/config/app";
+import { signOut } from "@/app/actions";
 
-export default function Sidebar() {
+export default function Sidebar({ email }: { email?: string | null }) {
   const pathname = usePathname();
+  if (pathname === "/login") return null;
   const [first, ...rest] = APP_NAME.split(".");
   return (
-    <aside className="shrink-0 border-b border-border p-4 md:sticky md:top-0 md:h-screen md:w-56 md:border-b-0 md:border-r">
+    <aside className="flex shrink-0 flex-col border-b border-border p-4 md:sticky md:top-0 md:h-screen md:w-56 md:border-b-0 md:border-r">
       <Link href="/create" className="block text-lg font-semibold tracking-tight" data-testid="logo">
         {first}
         {rest.length > 0 && (
@@ -37,6 +39,16 @@ export default function Sidebar() {
           );
         })}
       </nav>
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3 md:mt-auto">
+        <span className="min-w-0 truncate text-xs text-muted" title={email ?? ""} data-testid="user-email">
+          {email}
+        </span>
+        <form action={signOut}>
+          <button type="submit" className="shrink-0 rounded-lg border border-border px-2 py-1 text-xs text-muted hover:text-text" data-testid="logout">
+            esci
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }
