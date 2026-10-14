@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import { HAS_CREDS, SKIP_REASON, login } from "./helpers";
+import { cleanupTestSongs, seedSongWithSnippet } from "./songs-helpers";
 
 const ROOT = path.resolve(__dirname, "..");
 const FORMAT = path.join(ROOT, "src/config/format.ts");
@@ -22,10 +23,19 @@ async function withEdit(file: string, from: string, to: string, fn: () => Promis
   }
 }
 
+// Dalla Fase 3 le canzoni di /create sono quelle vere: un brano di prova (con snippet) viene creato
+// una volta sola prima dei test e rimosso alla fine.
+let seeded: { title: string; optionLabel: string };
+
+/** Seleziona la canzone di prova (il suo unico snippet si seleziona da solo). */
+async function chooseSong(page: Page) {
+  await page.getByTestId("song-select").selectOption({ label: seeded.optionLabel });
+}
+
 /** Seleziona canzone + core e aggiunge una ready nella pagina create. */
 async function addReady(page: Page) {
   await page.goto("/create");
-  await page.getByTestId("song-select").selectOption({ index: 1 });
+  await chooseSong(page);
   await page.getByTestId("core-c2").click();
   await page.getByTestId("ready-button").click();
 }
@@ -55,6 +65,21 @@ test("1. npm run build senza errori", async () => {
 test.describe("pagine (Fase 1, richiedono login reale)", () => {
 // Dalla Fase 2 le pagine richiedono login: questi test girano solo con E2E_EMAIL/E2E_PASSWORD.
 test.skip(!HAS_CREDS, SKIP_REASON);
+test.beforeAll(async ({ browser }) => {
+  test.setTimeout(180_000);
+  const ctx = await browser.newContext({ baseURL: test.info().project.use.baseURL, viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  await login(page);
+  seeded = await seedSongWithSnippet(page);
+  await ctx.close();
+});
+test.afterAll(async ({ browser }) => {
+  const ctx = await browser.newContext({ baseURL: test.info().project.use.baseURL });
+  const page = await ctx.newPage();
+  await login(page);
+  await cleanupTestSongs(page);
+  await ctx.close();
+});
 test.beforeEach(async ({ page }) => {
   await login(page);
 });
@@ -81,8 +106,8 @@ test("3. ready: disabilitato senza canzone+core, abilitato con entrambi, il clic
   await expect(page.getByTestId("ready-hint")).toContainText("manca una canzone e almeno un core");
   await expect(page.getByTestId("readys-empty")).toHaveText("le tue ultime anteprime restano in alto");
 
-  await page.getByTestId("song-select").selectOption({ index: 1 });
-  await expect(ready).toBeDisabled(); // solo canzone
+  await chooseSong(page);
+  await expect(ready).toBeDisabled(); // solo canzone (lo snippet unico è già scelto)
   await expect(page.getByTestId("ready-hint")).toContainText("manca almeno un core");
   await expect(page.getByTestId("segment-from")).toBeVisible();
   await expect(page.getByTestId("segment-to")).toBeVisible();
@@ -106,6 +131,12 @@ test("3. ready: disabilitato senza canzone+core, abilitato con entrambi, il clic
   await page.getByTestId("core-c2").click();
   await expect(page.getByTestId("ready-button")).toBeDisabled();
   await expect(page.getByTestId("ready-hint")).toContainText("manca una canzone");
+
+  // canzone senza snippet scelto: ancora disabilitato
+  await chooseSong(page);
+  await page.getByTestId(/^snippet-option-/).first().click(); // deseleziona lo snippet
+  await expect(page.getByTestId("ready-button")).toBeDisabled();
+  await expect(page.getByTestId("ready-hint")).toContainText("manca uno snippet");
 });
 
 test("4. anteprime ~19:6 e il rapporto segue ASPECT_RATIO ovunque", async ({ page }) => {
@@ -142,7 +173,7 @@ test("5. cambiando --accent cambia il colore degli accenti", async ({ page }) =>
   test.setTimeout(120_000);
   const read = async () => {
     await page.goto("/create");
-    await page.getByTestId("song-select").selectOption({ index: 1 });
+    await chooseSong(page);
     await page.getByTestId("core-c2").click();
     return page.evaluate(() => {
       const c = (sel: string, prop: "color" | "backgroundColor") =>
@@ -177,11 +208,10 @@ test("6. nessuno scroll orizzontale a 1440px e 390px (+ screenshot)", async ({ p
     for (const r of ROUTES) {
       await page.goto(`/${r}`);
       if (r === "create") {
-        await page.getByTestId("song-select").selectOption({ index: 1 });
+        await chooseSong(page);
         await page.getByTestId("core-c2").click();
         await page.getByTestId("core-c4").click({ modifiers: ["Shift"] });
-        await page.getByTestId("segment-edit").click();
-        await page.getByTestId("segment-edit").click();
+        await expect(page.getByTestId("segment-edit")).toBeVisible(); // "modifica" ora apre /songs/[id]
         await page.getByTestId("ready-button").click();
         await page.getByTestId("ready-button").click();
       }

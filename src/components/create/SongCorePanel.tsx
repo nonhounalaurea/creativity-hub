@@ -1,28 +1,34 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import Preview from "@/components/Preview";
 import { MAX_DURATION_SECONDS } from "@/config/format";
-import { fmtTime, pick } from "@/lib/format";
+import { fmtSeconds, fmtTime, pick } from "@/lib/format";
+import type { LyricLine } from "@/lib/lyrics";
+import type { SongWithSnippets } from "@/lib/songs";
 import { CORES } from "@/mock/cores";
-import { DROPDOWN_SONGS, LINE_SECONDS } from "@/mock/songs";
+
+export type CreateSong = SongWithSnippets & { lines: LyricLine[] };
 
 type Props = {
+  /** null = in caricamento */
+  songs: CreateSong[] | null;
+  error: string;
+  onRetry: () => void;
   songId: string;
   onSong: (id: string) => void;
-  range: [number, number];
-  onRange: (r: [number, number]) => void;
+  snippetId: string;
+  onSnippet: (id: string) => void;
   coreIds: string[];
   onCores: (ids: string[]) => void;
 };
 
-export default function SongCorePanel({ songId, onSong, range, onRange, coreIds, onCores }: Props) {
-  const [editing, setEditing] = useState(false);
-  const [note, setNote] = useState("");
+export default function SongCorePanel({ songs, error, onRetry, songId, onSong, snippetId, onSnippet, coreIds, onCores }: Props) {
   const [tab, setTab] = useState<"recent" | "mine">("recent");
 
-  const song = DROPDOWN_SONGS.find((s) => s.id === songId);
-  const seconds = (range[1] - range[0] + 1) * LINE_SECONDS;
+  const list = songs ?? [];
+  const song = list.find((s) => s.id === songId);
 
   const cores =
     tab === "recent"
@@ -38,80 +44,106 @@ export default function SongCorePanel({ songId, onSong, range, onRange, coreIds,
     <section className="flex min-w-0 flex-col gap-4" aria-label="canzone e core">
       <div className="card flex flex-col gap-3">
         <h2 className="text-sm font-semibold">canzone</h2>
+        {songs === null && (
+          <p className="text-xs text-muted" data-testid="songs-loading">
+            carico le canzoni…
+          </p>
+        )}
+        {error && (
+          <p role="alert" data-testid="songs-error" className="flex flex-wrap items-center gap-2 text-xs">
+            {error}
+            <button type="button" className="btn px-2 py-0.5 text-xs" onClick={onRetry}>
+              riprova
+            </button>
+          </p>
+        )}
         <div className="flex gap-2">
           <select
             data-testid="song-select"
             aria-label="canzone"
             className="field min-w-0 flex-1"
             value={songId}
-            onChange={(e) => {
-              onSong(e.target.value);
-              setEditing(false);
-            }}
+            disabled={songs === null}
+            onChange={(e) => onSong(e.target.value)}
           >
-            <option value="">scegli una canzone</option>
-            {DROPDOWN_SONGS.map((s) => (
+            <option value="">{songs !== null && list.length === 0 ? "nessuna canzone caricata" : "scegli una canzone"}</option>
+            {list.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.title} — {s.artist}
+                {s.title} — {s.artist || "artista sconosciuto"}
               </option>
             ))}
           </select>
-          <button type="button" className="btn" data-testid="song-shuffle" onClick={() => onSong(pick(DROPDOWN_SONGS).id)}>
+          <button
+            type="button"
+            className="btn"
+            data-testid="song-shuffle"
+            disabled={list.length === 0}
+            onClick={() => onSong(pick(list).id)}
+          >
             shuffle
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" className="btn" data-testid="upload-song" onClick={() => setNote("il caricamento arriva nella prossima fase")}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/songs" className="btn" data-testid="upload-song">
             carica canzone
-          </button>
-          {note && <span className="text-xs text-muted">{note}</span>}
+          </Link>
+          {songs !== null && list.length === 0 && !error && (
+            <span className="text-xs text-muted" data-testid="songs-none">
+              carica un mp3, wav o m4a dalla pagina songs
+            </span>
+          )}
         </div>
 
         {song && (
           <div data-testid="segment" className="flex flex-col gap-2 border-t border-border pt-3 text-sm">
-            {editing ? (
-              <div className="flex flex-col gap-2">
-                {(["da", "a"] as const).map((label, k) => (
-                  <label key={label} className="flex items-center gap-2">
-                    <span className="w-6 text-muted">{label}</span>
-                    <select
-                      data-testid={`segment-${label}`}
-                      className="field min-w-0 flex-1"
-                      value={range[k]}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        onRange(k === 0 ? [v, Math.max(v, range[1])] : [Math.min(v, range[0]), v]);
-                      }}
-                    >
-                      {song.lyrics.map((l, i) => (
-                        <option key={i} value={i}>
-                          {fmtTime(l.t)} · {l.text}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <>
-                <p className="flex gap-2">
-                  <span className="w-6 text-muted">da</span>
-                  <span data-testid="segment-from" className="min-w-0">{song.lyrics[range[0]].text}</span>
-                </p>
-                <p className="flex gap-2">
-                  <span className="w-6 text-muted">a</span>
-                  <span data-testid="segment-to" className="min-w-0">{song.lyrics[range[1]].text}</span>
-                </p>
-              </>
-            )}
             <div className="flex items-center justify-between gap-2">
-              <span className={`text-xs ${seconds > MAX_DURATION_SECONDS ? "text-text" : "text-muted"}`}>
-                {seconds} s · max {MAX_DURATION_SECONDS} s{seconds > MAX_DURATION_SECONDS ? " (verrà tagliato)" : ""}
-              </span>
-              <button type="button" className="btn" data-testid="segment-edit" onClick={() => setEditing((v) => !v)}>
-                {editing ? "fatto" : "modifica"}
-              </button>
+              <h3 className="text-xs text-muted">snippet</h3>
+              <Link href={`/songs/${song.id}`} className="btn" data-testid="segment-edit">
+                modifica
+              </Link>
             </div>
+            {song.snippets.length === 0 ? (
+              <p className="text-xs text-muted" data-testid="snippets-none">
+                {song.analyzed
+                  ? "nessuno snippet: aprila con “modifica” e scegline uno"
+                  : "nessuno snippet: sincronizza il testo e scegline uno con “modifica”"}
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1.5" data-testid="snippet-options" aria-label="snippet della canzone">
+                {song.snippets.map((sn) => {
+                  const on = sn.id === snippetId;
+                  const secs = sn.end_seconds - sn.start_seconds;
+                  return (
+                    <li key={sn.id}>
+                      <button
+                        type="button"
+                        data-testid={`snippet-option-${sn.id}`}
+                        aria-pressed={on}
+                        onClick={() => onSnippet(on ? "" : sn.id)}
+                        className={`w-full rounded-lg border px-3 py-2 text-left ${on ? "border-accent bg-bg" : "border-border hover:border-muted"}`}
+                      >
+                        <span className="flex gap-2">
+                          <span className="w-6 shrink-0 text-muted">da</span>
+                          <span data-testid="segment-from" className="min-w-0 break-words">
+                            {song.lines[sn.from_line]?.text ?? `riga ${sn.from_line + 1}`}
+                          </span>
+                        </span>
+                        <span className="flex gap-2">
+                          <span className="w-6 shrink-0 text-muted">a</span>
+                          <span data-testid="segment-to" className="min-w-0 break-words">
+                            {song.lines[sn.to_line]?.text ?? `riga ${sn.to_line + 1}`}
+                          </span>
+                        </span>
+                        <span className={`mt-1 block text-xs ${secs > MAX_DURATION_SECONDS + 1e-6 ? "text-text" : "text-muted"}`}>
+                          {fmtTime(sn.start_seconds)}–{fmtTime(sn.end_seconds)} · {fmtSeconds(secs, 1)} · max {MAX_DURATION_SECONDS} s
+                          {secs > MAX_DURATION_SECONDS + 1e-6 ? " (verrà tagliato)" : ""}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         )}
       </div>

@@ -16,3 +16,8 @@ export function fmtDate(iso: string): string {
 export function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
+
+/** Secondi con virgola decimale: 12,34 s */
+export function fmtSeconds(seconds: number, digits = 2): string {
+  return `${seconds.toFixed(digits).replace(".", ",")} s`;
+}

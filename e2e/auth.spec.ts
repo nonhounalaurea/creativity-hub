@@ -3,8 +3,8 @@ import { HAS_CREDS, SKIP_REASON, login } from "./helpers";
 
 const ROUTES = ["create", "readys", "cores", "songs", "looks"];
 
-test("a. senza sessione le 5 rotte (e /) reindirizzano a /login", async ({ page }) => {
-  for (const r of ["", ...ROUTES]) {
+test("a. senza sessione le 5 rotte (e /, /songs/[id]) reindirizzano a /login", async ({ page }) => {
+  for (const r of ["", ...ROUTES, "songs/00000000-0000-4000-8000-000000000000"]) {
     await page.goto(`/${r}`);
     await expect(page).toHaveURL(/\/login$/);
   }
